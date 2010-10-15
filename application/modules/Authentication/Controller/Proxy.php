@@ -21,10 +21,7 @@ class Authentication_Controller_Proxy extends EngineBlock_Controller_Abstract
     {
         $this->setNoRender();
         
-        // VO HACK
-        $hostedEntity = "pci";
-
-        $proxyServer = new EngineBlock_Corto_Adapter($hostedEntity);
+        $proxyServer = new EngineBlock_Corto_Adapter();
         $proxyServer->processedAssertionConsumer();
     }
 }

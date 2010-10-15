@@ -5,6 +5,11 @@ class EngineBlock_Corto_CoreProxy extends Corto_ProxyServer
     protected $_headers = array();
     protected $_output;
 
+    protected $_voContext = null;
+    
+    const VO_CONTEXT_KEY          = 'voContext';
+    
+    
     protected $_serviceToControllerMapping = array(
         'singleSignOnService'       => 'authentication/idp/single-sign-on',
         'continueToIdP'             => 'authentication/idp/process-wayf',
@@ -16,40 +21,6 @@ class EngineBlock_Corto_CoreProxy extends Corto_ProxyServer
         'processConsentService'     => 'authentication/idp/process-consent',
         'processedAssertionConsumerService' => 'authentication/proxy/processed-assertion'
     );
-    
-    // TEMPORARY VO HACK TO TRY TO FETCH hostedendity FROM SESSION
-    
-    public function serveRequest($uri)
-    {
-          
-        
-        $parameters = $this->_getParametersFromUri($uri);
-        
-        /*
-        if (isset($_SESSION["hostedentity"]) && $_SESSION["hostedentity"]!=$parameters["EntityCode"]) {
-            echo "Alternative hosted entity found in session, switching.";
-            $parameters["EntityCode"] = $_SESSION["hostedentity"];
-            var_dump("Loaded ".$parameters["EntityCode"]);
-        } else {
-            // Remember the last one
-            $_SESSION["hostedentity"] = $parameters["EntityCode"];
-            var_dump("Stored ".$_SESSION["hostedentity"]);
-        } */
-           
-        $this->setCurrentEntity($parameters['EntityCode'], $parameters['RemoteIdPMd5']);
-
-        // OK KIP EI. De sessie is afhankelijk van de entitycode. De entitycode van de sessie.
-        $this->startSession();
-        
-        
-        $this->getSessionLog()->debug("Started request with $uri, resulting in parameters: ". var_export($parameters, true));
-
-        $serviceName = $parameters['ServiceName'];
-        $this->getSessionLog()->debug("Calling service '$serviceName'");
-        $this->getServicesModule()->$serviceName();
-        $this->getSessionLog()->debug("Done calling service '$serviceName'");
-    } 
-    
 
     public function getParametersFromUrl($url)
     {
@@ -74,8 +45,19 @@ class EngineBlock_Corto_CoreProxy extends Corto_ProxyServer
         throw new Corto_ProxyServer_Exception("Unable to map URL '$url' to EngineBlock URL");
     }
 
+    protected function _createBaseResponse($request)
+    {
+        if (isset($request['__'][EngineBlock_Corto_CoreProxy::VO_CONTEXT_KEY])) {
+            $vo = $request['__'][EngineBlock_Corto_CoreProxy::VO_CONTEXT_KEY];
+            $this->setVirtualOrganisationContext($vo);
+        }
+        
+        return parent::_createBaseResponse($request);
+    }
+    
     public function getHostedEntityUrl($entityCode, $serviceName = "", $remoteEntityId = "")
     {
+        
         if (!isset($this->_serviceToControllerMapping[$serviceName])) {
             return parent::getHostedEntityUrl($entityCode, $serviceName, $remoteEntityId);
         }
@@ -88,11 +70,23 @@ class EngineBlock_Corto_CoreProxy extends Corto_ProxyServer
         $host = $_SERVER['HTTP_HOST'];
 
         $mappedUri = $this->_serviceToControllerMapping[$serviceName] .
-            ($entityCode!="main" && $serviceName!= "sPMetadataService" ? '/' . "hosted:".$entityCode : '') . 
+            ($this->_voContext!=null && $serviceName != "sPMetadataService" ? '/' . "vo:".$this->_voContext : '') .
             ($remoteEntityId ? '/' . md5($remoteEntityId) : '');
+                    
         return $scheme . '://' . $host . ($this->_hostedPath ? $this->_hostedPath : '') . $mappedUri;
     }
 
+    public function setVirtualOrganisationContext($voContext)
+    {
+        $this->_voContext = $voContext;
+    }
+    
+    public function getVirtualOrganisationContext()
+    {
+        return $this->_voContext;
+    }
+  
+    
     public function getOutput()
     {
         return $this->_output;

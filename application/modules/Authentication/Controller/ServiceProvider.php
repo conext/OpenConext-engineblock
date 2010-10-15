@@ -6,12 +6,7 @@ class Authentication_Controller_ServiceProvider extends EngineBlock_Controller_A
     {
         $this->setNoRender();
         
-        // HACK
-        $hostedEntity = "pci";
-
-        $proxyServer = new EngineBlock_Corto_Adapter($hostedEntity);
-        // $proxyServer = new EngineBlock_Corto_Adapter();
-        
+        $proxyServer = new EngineBlock_Corto_Adapter();
         
         $proxyServer->consumeAssertion();
     }

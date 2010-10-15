@@ -23,13 +23,15 @@ class EngineBlock_Corto_Adapter
      */
     protected $_hostedEntity;
     
+    /**
+     * @var String the name of the Virtual Organisation context (if any)
+     */
+    protected $_voContext = NULL;
+    
     public function __construct($hostedEntity = null) {
         
         if ($hostedEntity == null) {
             $hostedEntity = self::DEFAULT_HOSTED_ENTITY;
-        } else {
-            // EVIL
-            $_SESSION["hostedentity"] = $hostedEntity;
         }
         
         $this->_hostedEntity = $hostedEntity;
@@ -96,6 +98,11 @@ class EngineBlock_Corto_Adapter
     {
         $this->_callCortoServiceUri('processedAssertionConsumerService');
     }
+    
+    public function setVirtualOrganisationContext($virtualOrganisation)
+    {
+        $this->_voContext = $virtualOrganisation;
+    }
 
     protected function _callCortoServiceUri($serviceName, $idPProviderHash = "")
     {
@@ -139,7 +146,13 @@ class EngineBlock_Corto_Adapter
 
     protected function _configureProxyServer(Corto_ProxyServer $proxyServer)
     {
+        
         $application = EngineBlock_ApplicationSingleton::getInstance();
+        
+        if ($this->_voContext!=null) {
+            $proxyServer->setVirtualOrganisationContext($this->_voContext);
+        }
+        
 
         $proxyServer->setConfigs(array(
             'debug' => $application->getConfigurationValue('debug', false),
@@ -151,7 +164,7 @@ class EngineBlock_Corto_Adapter
         $proxyServer->setAttributeMetadata($attributes);
 
         $proxyServer->setHostedEntities(array(
-            $proxyServer->getHostedEntityUrl('main') => array(
+            $proxyServer->getHostedEntityUrl($this->_hostedEntity) => array(
                 'certificates' => array(
                     'public'    => $application->getConfiguration()->encryption->key->public,
                     'private'   => $application->getConfiguration()->encryption->key->private,
@@ -161,22 +174,7 @@ class EngineBlock_Corto_Adapter
                 'Processing' => array(
                     'Consent' => array(
                         'Binding'  => 'INTERNAL',
-                        'Location' => $proxyServer->getHostedEntityUrl('main', 'provideConsentService'),
-                    ),
-                ),
-                'keepsession' => true,
-            ),
-            $proxyServer->getHostedEntityUrl('pci') => array(
-                'certificates' => array(
-                    'public'    => $application->getConfiguration()->encryption->key->public,
-                    'private'   => $application->getConfiguration()->encryption->key->private,
-                ),
-                'infilter'  => array($this, 'filterInputAttributes'),
-                //'outfilter' => array($this, 'filterOutputAttributes'),
-                'Processing' => array(
-                    'Consent' => array(
-                        'Binding'  => 'INTERNAL',
-                        'Location' => $proxyServer->getHostedEntityUrl('pci', 'provideConsentService'),
+                        'Location' => $proxyServer->getHostedEntityUrl($this->_hostedEntity, 'provideConsentService'),
                     ),
                 ),
                 'keepsession' => true,
@@ -184,7 +182,7 @@ class EngineBlock_Corto_Adapter
         ));
 
         $proxyServer->setRemoteEntities($this->_getRemoteEntities() + array(
-            $proxyServer->getHostedEntityUrl('main', 'idPMetadataService') => array(
+            $proxyServer->getHostedEntityUrl($this->_hostedEntity, 'idPMetadataService') => array(
                 'certificates' => array(
                     'public'    => $application->getConfiguration()->encryption->key->public,
                     'private'   => $application->getConfiguration()->encryption->key->private,
@@ -198,7 +196,8 @@ class EngineBlock_Corto_Adapter
         );
 
         $proxyServer->setSessionLogDefault(new Corto_Log_File('/tmp/corto_session'));
-        $proxyServer->setBindingsModule(new Corto_Module_Bindings($proxyServer));
+        
+        $proxyServer->setBindingsModule(new EngineBlock_Corto_Module_Bindings($proxyServer));
         $proxyServer->setServicesModule(new EngineBlock_Corto_Module_Services($proxyServer));
     }
 
@@ -212,6 +211,12 @@ class EngineBlock_Corto_Adapter
      */
     public function filterInputAttributes(&$response, &$responseAttributes, $request, $spEntityMetadata, $idpEntityMetadata)
     {
+        // In filter stage we need to take a look at the VO context      
+        if (isset($request['__'][EngineBlock_Corto_CoreProxy::VO_CONTEXT_KEY])) {
+            $vo = $request['__'][EngineBlock_Corto_CoreProxy::VO_CONTEXT_KEY];
+            $this->setVirtualOrganisationContext($vo);
+        }
+        
         $responseAttributes = $this->_enrichAttributes($responseAttributes);
 
         $subjectId = $this->_provisionUser($responseAttributes, $idpEntityMetadata);

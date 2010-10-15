@@ -6,32 +6,24 @@ class Authentication_Controller_IdentityProvider extends EngineBlock_Controller_
     {
         $this->setNoRender();
         
-        // VO CHANGE
         $idPEntityId = null;
-        $hostedEntity = null;
         
-        if (substr($argument, 0, 7)=="hosted:") {
-        	$hostedEntity = substr($argument,7);
+        $proxyServer = new EngineBlock_Corto_Adapter();
+        if (substr($argument, 0, 3)=="vo:") {
+            $proxyServer->setVirtualOrganisationContext(substr($argument,3));
         } else {
-        	$idPEntityId = $argument;
+            
+            $idPEntityId = $argument;
         }
-
-        $proxyServer = new EngineBlock_Corto_Adapter($hostedEntity);
         $proxyServer->singleSignOn($idPEntityId);
     }
 
-    public function processWayfAction($argument = null)
+    public function processWayfAction()
     {
         $this->setNoRender();
         
-        // VO CHANGE
-        $hostedEntity = null;
-        
-        if (substr($argument, 0, 7)=="hosted:") {
-            $hostedEntity = substr($argument,7);
-        }
-
-        $proxyServer = new EngineBlock_Corto_Adapter($hostedEntity);
+        $proxyServer = new EngineBlock_Corto_Adapter();
+                
         $proxyServer->processWayf();
     }
 
@@ -47,10 +39,7 @@ class Authentication_Controller_IdentityProvider extends EngineBlock_Controller_
     {
         $this->setNoRender();
         
-        // VO HACK
-        $hostedEntity = "pci";
-
-        $proxyServer = new EngineBlock_Corto_Adapter($hostedEntity);
+        $proxyServer = new EngineBlock_Corto_Adapter();
         $proxyServer->processConsent();
     }
 }
