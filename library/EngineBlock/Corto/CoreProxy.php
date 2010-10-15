@@ -16,6 +16,40 @@ class EngineBlock_Corto_CoreProxy extends Corto_ProxyServer
         'processConsentService'     => 'authentication/idp/process-consent',
         'processedAssertionConsumerService' => 'authentication/proxy/processed-assertion'
     );
+    
+    // TEMPORARY VO HACK TO TRY TO FETCH hostedendity FROM SESSION
+    
+    public function serveRequest($uri)
+    {
+          
+        
+        $parameters = $this->_getParametersFromUri($uri);
+        
+        /*
+        if (isset($_SESSION["hostedentity"]) && $_SESSION["hostedentity"]!=$parameters["EntityCode"]) {
+            echo "Alternative hosted entity found in session, switching.";
+            $parameters["EntityCode"] = $_SESSION["hostedentity"];
+            var_dump("Loaded ".$parameters["EntityCode"]);
+        } else {
+            // Remember the last one
+            $_SESSION["hostedentity"] = $parameters["EntityCode"];
+            var_dump("Stored ".$_SESSION["hostedentity"]);
+        } */
+           
+        $this->setCurrentEntity($parameters['EntityCode'], $parameters['RemoteIdPMd5']);
+
+        // OK KIP EI. De sessie is afhankelijk van de entitycode. De entitycode van de sessie.
+        $this->startSession();
+        
+        
+        $this->getSessionLog()->debug("Started request with $uri, resulting in parameters: ". var_export($parameters, true));
+
+        $serviceName = $parameters['ServiceName'];
+        $this->getSessionLog()->debug("Calling service '$serviceName'");
+        $this->getServicesModule()->$serviceName();
+        $this->getSessionLog()->debug("Done calling service '$serviceName'");
+    } 
+    
 
     public function getParametersFromUrl($url)
     {
@@ -53,7 +87,9 @@ class EngineBlock_Corto_CoreProxy extends Corto_ProxyServer
 
         $host = $_SERVER['HTTP_HOST'];
 
-        $mappedUri = $this->_serviceToControllerMapping[$serviceName] . ($remoteEntityId ? '/' . md5($remoteEntityId) : '');
+        $mappedUri = $this->_serviceToControllerMapping[$serviceName] .
+            ($entityCode!="main" && $serviceName!= "sPMetadataService" ? '/' . "hosted:".$entityCode : '') . 
+            ($remoteEntityId ? '/' . md5($remoteEntityId) : '');
         return $scheme . '://' . $host . ($this->_hostedPath ? $this->_hostedPath : '') . $mappedUri;
     }
 

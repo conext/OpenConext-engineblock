@@ -17,6 +17,24 @@ class EngineBlock_Corto_Adapter
      * @var EngineBlock_Corto_CoreProxy
      */
     protected $_proxyServer;
+    
+    /**
+     * @var String The name of the currently hosted Corto hosted entity.
+     */
+    protected $_hostedEntity;
+    
+    public function __construct($hostedEntity = null) {
+        
+        if ($hostedEntity == null) {
+            $hostedEntity = self::DEFAULT_HOSTED_ENTITY;
+        } else {
+            // EVIL
+            $_SESSION["hostedentity"] = $hostedEntity;
+        }
+        
+        $this->_hostedEntity = $hostedEntity;
+        
+    }
 
     /**
      * Simple autoloader for Corto, tries to autoload all classes with Corto_ from the Corto/library folder.
@@ -93,9 +111,12 @@ class EngineBlock_Corto_Adapter
 
     protected function _getCortoUri($cortoServiceName, $idPProviderHash = "")
     {
-        $cortoHostedEntity  = self::DEFAULT_HOSTED_ENTITY;
+        $cortoHostedEntity  = $this->_getHostedEntity();
         $cortoIdPHash       = $idPProviderHash;
-        return '/' . $cortoHostedEntity . ($cortoIdPHash ? '_' . $cortoIdPHash : '') . '/' . $cortoServiceName;
+        $result =  '/' . $cortoHostedEntity . ($cortoIdPHash ? '_' . $cortoIdPHash : '') . '/' . $cortoServiceName;
+        
+        return $result;
+        
     }
 
     protected function _initProxy()
@@ -141,6 +162,21 @@ class EngineBlock_Corto_Adapter
                     'Consent' => array(
                         'Binding'  => 'INTERNAL',
                         'Location' => $proxyServer->getHostedEntityUrl('main', 'provideConsentService'),
+                    ),
+                ),
+                'keepsession' => true,
+            ),
+            $proxyServer->getHostedEntityUrl('pci') => array(
+                'certificates' => array(
+                    'public'    => $application->getConfiguration()->encryption->key->public,
+                    'private'   => $application->getConfiguration()->encryption->key->private,
+                ),
+                'infilter'  => array($this, 'filterInputAttributes'),
+                //'outfilter' => array($this, 'filterOutputAttributes'),
+                'Processing' => array(
+                    'Consent' => array(
+                        'Binding'  => 'INTERNAL',
+                        'Location' => $proxyServer->getHostedEntityUrl('pci', 'provideConsentService'),
                     ),
                 ),
                 'keepsession' => true,
@@ -254,5 +290,10 @@ class EngineBlock_Corto_Adapter
     protected function _getProvisioning()
     {
         return new EngineBlock_Provisioning();
+    }
+    
+    protected function _getHostedEntity()
+    {
+        return $this->_hostedEntity;
     }
 }
