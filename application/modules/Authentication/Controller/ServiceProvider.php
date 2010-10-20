@@ -8,7 +8,12 @@ class Authentication_Controller_ServiceProvider extends EngineBlock_Controller_A
         
         $proxyServer = new EngineBlock_Corto_Adapter();
         
-        $proxyServer->consumeAssertion();
+        try {
+            $proxyServer->consumeAssertion();
+        }
+        catch(EngineBlock_Exception_UserNotMember $e) {
+            EngineBlock_ApplicationSingleton::getInstance()->getHttpResponse()->setRedirectUrl('/authentication/feedback/vomembershiprequired');
+        }
     }
 
     public function processConsentAction()

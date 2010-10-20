@@ -5,6 +5,10 @@ require ENGINEBLOCK_FOLDER_LIBRARY_CORTO . 'Corto/ProxyServer.php';
 
 spl_autoload_register(array('EngineBlock_Corto_Adapter', 'cortoAutoLoad'));
 
+class EngineBlock_Exception_UserNotMember extends EngineBlock_Exception
+{
+}
+
 class EngineBlock_Corto_Adapter 
 {
     const DEFAULT_HOSTED_ENTITY = 'main';
@@ -211,18 +215,47 @@ class EngineBlock_Corto_Adapter
      */
     public function filterInputAttributes(&$response, &$responseAttributes, $request, $spEntityMetadata, $idpEntityMetadata)
     {
+        $vo = NULL;
+        
         // In filter stage we need to take a look at the VO context      
         if (isset($request['__'][EngineBlock_Corto_CoreProxy::VO_CONTEXT_KEY])) {
             $vo = $request['__'][EngineBlock_Corto_CoreProxy::VO_CONTEXT_KEY];
-            $this->setVirtualOrganisationContext($vo);
+            $this->setVirtualOrganisationContext($vo);            
         }
         
         $responseAttributes = $this->_enrichAttributes($responseAttributes);
 
         $subjectId = $this->_provisionUser($responseAttributes, $idpEntityMetadata);
+        
+        // We now have a subjectId and a vo context (if any). Time to check membership.
+        if (!is_null($vo)) {
+            if (!$this->_validateVOMembership($subjectId, $vo)) {
+                
+                throw new EngineBlock_Exception_UserNotMember("User not a member of VO $vo");          
+            }
+        }
+        
         $response['saml:Assertion']['saml:Subject']['saml:NameID']['_Format'] = 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent';
         $response['saml:Assertion']['saml:Subject']['saml:NameID']['__v'] = $subjectId;
     }
+    
+    public function _validateVOMembership($subjectIdentifier, $voIdentifier)
+    {
+        // todo: this is pure happy flow
+        
+        $voClient = new EngineBlock_VORegistry_Client();  
+        $metadata = $voClient->getGroupProviderMetadata($voIdentifier);
+        
+        $client = EngineBlock_Groups_Directory::createGroupsClient($metadata["groupprovideridentifier"]);    
+
+        if (isset($metadata["groupstem"])) {
+            $client->setGroupStem($metadata["groupstem"]);
+        }
+        
+        return $client->isMember($subjectIdentifier, $metadata["groupidentifier"]);
+    }
+    
+    
 
     /**
      * Enrich the attributes with attributes

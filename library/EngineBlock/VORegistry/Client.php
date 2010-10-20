@@ -25,8 +25,10 @@ class EngineBlock_VORegistry_Client
     {
         // @todo replace hardcoded values for actual lookup in VORegistry
         return array("groupprovideridentifier"=>"default",
-                     "groupidentifier"=>"pcigroup",
-                     "groupstem"=>"eb:vo");    
+                     "groupidentifier"=>"pci_members",
+                     "groupstem"=>"nl:pci");    
     }
+    
+  
     
 }
