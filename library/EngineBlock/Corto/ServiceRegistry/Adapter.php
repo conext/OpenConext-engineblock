@@ -12,6 +12,60 @@ class EngineBlock_Corto_ServiceRegistry_Adapter
         $this->_serviceRegistry = $serviceRegistry;
     }
 
+    /**
+     * Given a list of (SAML2) entities, filter out the idps that are not allowed
+     * for the given Service Provider.
+     *
+     * @todo makes a call for EVERY idp to the service registry,
+     *       the SR should just implement 1 call for all allowed IdPs
+     *
+     * @param  $entities
+     * @param  $spEntityId
+     * @return array Filtered entities
+     */
+    public function filterEntitiesBySp(array $entities, $spEntityId)
+    {
+        foreach ($entities as $entityId => $entityData) {
+            if (isset($entityData['SingleSignOnService'])) {
+                // entity is an idp
+                if ($this->_serviceRegistry->isConnectionAllowed(
+                    $spEntityId,
+                    $entityId
+                )) {
+                    unset($entities[$entityId]);
+                }
+            }
+        }
+        return $entities;
+    }
+
+    /**
+     * Given a list of (SAML2) entities, filter out the sps that are nog allowed
+     * for the given Identity Provider.
+     *
+     * @todo makes a call for EVERY sp to the service registry,
+     *       the SR should just implement 1 call for all allowed SPs
+     *
+     * @param  $entities
+     * @param  $idpEntityId
+     * @return Filtered entities
+     */
+    public function filterEntitiesByIdp(array $entities, $idpEntityId)
+    {
+        foreach ($entities as $entityId => $entityData) {
+            if (isset($entityData['AssertionConsumerService'])) {
+                // entity is an sp
+                if ($this->_serviceRegistry->isConnectionAllowed(
+                    $entityId,
+                    $idpEntityId
+                )) {
+                    unset($entities[$entityId]);
+                }
+            }
+        }
+        return $entities;
+    }
+
     public function getRemoteMetaData()
     {
         return $this->_getRemoteSPsMetaData() + $this->_getRemoteIdPsMetadata();

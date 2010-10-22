@@ -31,10 +31,15 @@ class EngineBlock_Corto_Adapter
      * @var String the name of the Virtual Organisation context (if any)
      */
     protected $_voContext = NULL;
+
+    /**
+     * @var mixed Callback called on Proxy server after configuration
+     */
+    protected $_remoteEntitiesFilter = NULL;
     
-    public function __construct($hostedEntity = null) {
+    public function __construct($hostedEntity = NULL) {
         
-        if ($hostedEntity == null) {
+        if ($hostedEntity == NULL) {
             $hostedEntity = self::DEFAULT_HOSTED_ENTITY;
         }
         
@@ -65,7 +70,28 @@ class EngineBlock_Corto_Adapter
 
     public function singleSignOn($idPProviderHash)
     {
+        $this->setRemoteEntitiesFilter(array($this, '_filterRemoteEntitiesByRequestSp'));
         $this->_callCortoServiceUri('singleSignOnService', $idPProviderHash);
+    }
+
+    protected function _filterRemoteEntitiesByRequestSp(array $entities, EngineBlock_Corto_CoreProxy $proxyServer)
+    {
+        $request = $proxyServer->getBindingsModule()->receiveRequest();
+        $spEntityId = $request['saml:Issuer']['__v'];
+        return $this->_getServiceRegistryAdapter()->filterEntitiesBySp(
+            $entities,
+            $spEntityId
+        );
+    }
+
+    protected function _filterRemoteEntitiesByResponseIdp(array $entities, EngineBlock_Corto_CoreProxy $proxyServer)
+    {
+        $response = $proxyServer->getBindingsModule()->receiveResponse();
+        $idpEntityId = $response['saml:Issuer']['__v'];
+        return $this->_getServiceRegistryAdapter()->filterEntitiesByIdp(
+            $entities,
+            $idpEntityId
+        );
     }
 
     public function idPMetadata()
@@ -80,6 +106,7 @@ class EngineBlock_Corto_Adapter
 
     public function consumeAssertion()
     {
+        $this->setRemoteEntitiesFilter(array($this, '_filterRemoteEntitiesByRequestSp'));
         $this->_callCortoServiceUri('assertionConsumerService');
     }
 
@@ -127,7 +154,6 @@ class EngineBlock_Corto_Adapter
         $result =  '/' . $cortoHostedEntity . ($cortoIdPHash ? '_' . $cortoIdPHash : '') . '/' . $cortoServiceName;
         
         return $result;
-        
     }
 
     protected function _initProxy()
@@ -150,13 +176,11 @@ class EngineBlock_Corto_Adapter
 
     protected function _configureProxyServer(Corto_ProxyServer $proxyServer)
     {
-        
         $application = EngineBlock_ApplicationSingleton::getInstance();
         
         if ($this->_voContext!=null) {
             $proxyServer->setVirtualOrganisationContext($this->_voContext);
         }
-        
 
         $proxyServer->setConfigs(array(
             'debug' => $application->getConfigurationValue('debug', false),
@@ -185,14 +209,19 @@ class EngineBlock_Corto_Adapter
             ),
         ));
 
-        $proxyServer->setRemoteEntities($this->_getRemoteEntities() + array(
+        /**
+         * Add ourselves as valid IdP
+         */
+        $engineBlockEntities = array(
             $proxyServer->getHostedEntityUrl($this->_hostedEntity, 'idPMetadataService') => array(
                 'certificates' => array(
                     'public'    => $application->getConfiguration()->encryption->key->public,
                     'private'   => $application->getConfiguration()->encryption->key->private,
                 ),
             )
-        ));
+        );
+        $remoteEntities = $this->_getRemoteEntities();
+        $proxyServer->setRemoteEntities($remoteEntities + $engineBlockEntities);
 
         $proxyServer->setTemplateSource(
             Corto_ProxyServer::TEMPLATE_SOURCE_FILESYSTEM,
@@ -203,6 +232,16 @@ class EngineBlock_Corto_Adapter
         
         $proxyServer->setBindingsModule(new EngineBlock_Corto_Module_Bindings($proxyServer));
         $proxyServer->setServicesModule(new EngineBlock_Corto_Module_Services($proxyServer));
+
+        if ($this->_remoteEntitiesFilter) {
+            $proxyServer->setRemoteEntities(call_user_func_array(
+                array(
+                    $proxyServer->getRemoteEntities(),
+                    $proxyServer
+                ),
+                $this->_remoteEntitiesFilter
+            ));
+        }
     }
 
     /**
@@ -254,8 +293,6 @@ class EngineBlock_Corto_Adapter
         
         return $client->isMember($subjectIdentifier, $metadata["groupidentifier"]);
     }
-    
-    
 
     /**
      * Enrich the attributes with attributes
@@ -281,11 +318,16 @@ class EngineBlock_Corto_Adapter
 
     protected function _getRemoteEntities()
     {
-        $serviceRegistry = new EngineBlock_Corto_ServiceRegistry_Adapter(
-            new EngineBlock_ServiceRegistry_CacheProxy()
-        );
+        $serviceRegistry = $this->_getServiceRegistryAdapter();
         $metadata = $serviceRegistry->getRemoteMetaData();
         return $metadata;
+    }
+
+    protected function _getServiceRegistryAdapter()
+    {
+        return new EngineBlock_Corto_ServiceRegistry_Adapter(
+            new EngineBlock_ServiceRegistry_CacheProxy()
+        );
     }
 
     protected function _processProxyServerResponse()
@@ -333,5 +375,11 @@ class EngineBlock_Corto_Adapter
     protected function _getHostedEntity()
     {
         return $this->_hostedEntity;
+    }
+
+    protected function _setRemoteEntitiesFilter($callback)
+    {
+        $this->_remoteEntitiesFilter = $callback;
+        return $this;
     }
 }
