@@ -76,6 +76,12 @@ class EngineBlock_Corto_Adapter
 
     protected function _filterRemoteEntitiesByRequestSp(array $entities, EngineBlock_Corto_CoreProxy $proxyServer)
     {
+        /**
+         * Use the binding module to get the request, then
+         * store it in _REQUEST so Corto will think it has received it
+         * from an internal binding, because if Corto would try to
+         * get the request again from the binding module, it would fail.
+         */
         $request = $_REQUEST['SAMLRequest'] = $proxyServer->getBindingsModule()->receiveRequest();
         $spEntityId = $request['saml:Issuer']['__v'];
         return $this->_getServiceRegistryAdapter()->filterEntitiesBySp(
