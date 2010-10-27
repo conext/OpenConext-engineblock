@@ -70,13 +70,13 @@ class EngineBlock_Corto_Adapter
 
     public function singleSignOn($idPProviderHash)
     {
-        $this->setRemoteEntitiesFilter(array($this, '_filterRemoteEntitiesByRequestSp'));
+        $this->_setRemoteEntitiesFilter(array($this, '_filterRemoteEntitiesByRequestSp'));
         $this->_callCortoServiceUri('singleSignOnService', $idPProviderHash);
     }
 
     protected function _filterRemoteEntitiesByRequestSp(array $entities, EngineBlock_Corto_CoreProxy $proxyServer)
     {
-        $request = $proxyServer->getBindingsModule()->receiveRequest();
+        $request = $_REQUEST['SAMLRequest'] = $proxyServer->getBindingsModule()->receiveRequest();
         $spEntityId = $request['saml:Issuer']['__v'];
         return $this->_getServiceRegistryAdapter()->filterEntitiesBySp(
             $entities,
@@ -106,7 +106,7 @@ class EngineBlock_Corto_Adapter
 
     public function consumeAssertion()
     {
-        $this->setRemoteEntitiesFilter(array($this, '_filterRemoteEntitiesByRequestSp'));
+        $this->_setRemoteEntitiesFilter(array($this, '_filterRemoteEntitiesByRequestSp'));
         $this->_callCortoServiceUri('assertionConsumerService');
     }
 
@@ -235,11 +235,11 @@ class EngineBlock_Corto_Adapter
 
         if ($this->_remoteEntitiesFilter) {
             $proxyServer->setRemoteEntities(call_user_func_array(
+                $this->_remoteEntitiesFilter,
                 array(
                     $proxyServer->getRemoteEntities(),
                     $proxyServer
-                ),
-                $this->_remoteEntitiesFilter
+                )
             ));
         }
     }
