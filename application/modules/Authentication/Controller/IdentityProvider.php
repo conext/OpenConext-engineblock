@@ -33,11 +33,16 @@ class Authentication_Controller_IdentityProvider extends EngineBlock_Controller_
         $proxyServer->processWayf();
     }
 
-    public function metadataAction()
+    public function metadataAction($argument = null)
     {
         $this->setNoRender();
-
+        
         $proxyServer = new EngineBlock_Corto_Adapter();
+        
+        if (substr($argument, 0, 3)=="vo:") {
+            $proxyServer->setVirtualOrganisationContext(substr($argument,3));
+        }
+        
         $proxyServer->idPMetadata();
     }
 
