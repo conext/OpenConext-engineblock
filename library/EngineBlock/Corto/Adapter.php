@@ -90,16 +90,6 @@ class EngineBlock_Corto_Adapter
         );
     }
 
-    protected function _filterRemoteEntitiesByResponseIdp(array $entities, EngineBlock_Corto_CoreProxy $proxyServer)
-    {
-        $response = $proxyServer->getBindingsModule()->receiveResponse();
-        $idpEntityId = $response['saml:Issuer']['__v'];
-        return $this->_getServiceRegistryAdapter()->filterEntitiesByIdp(
-            $entities,
-            $idpEntityId
-        );
-    }
-
     public function idPMetadata()
     {
         $this->_callCortoServiceUri('idPMetadataService');
@@ -112,7 +102,6 @@ class EngineBlock_Corto_Adapter
 
     public function consumeAssertion()
     {
-        $this->_setRemoteEntitiesFilter(array($this, '_filterRemoteEntitiesByRequestSp'));
         $this->_callCortoServiceUri('assertionConsumerService');
     }
 
@@ -260,6 +249,12 @@ class EngineBlock_Corto_Adapter
      */
     public function filterInputAttributes(&$response, &$responseAttributes, $request, $spEntityMetadata, $idpEntityMetadata)
     {
+        // @todo, do these checks belong in the filterInputAttributes? It's the only hook we've got though with the relevant data.
+        
+        // STAGE 1 - validate if the IDP sending this response is allowed to connect to the SP that made the request.
+        $this->_validateSpIdpConnection($spEntityMetadata, $idpEntityMetadata);
+        
+        // STAGE 2 - determine a Virtual Organization context
         $vo = NULL;
         
         // In filter stage we need to take a look at the VO context      
@@ -268,11 +263,11 @@ class EngineBlock_Corto_Adapter
             $this->setVirtualOrganisationContext($vo);            
         }
         
+        // STAGE 3 - provisioning of the user account
         $responseAttributes = $this->_enrichAttributes($responseAttributes);
-
         $subjectId = $this->_provisionUser($responseAttributes, $idpEntityMetadata);
         
-        // We now have a subjectId and a vo context (if any). Time to check membership.
+        // STAGE 4 - If in VO context, validate the user's membership
         if (!is_null($vo)) {
             if (!$this->_validateVOMembership($subjectId, $vo)) {
                 
@@ -280,11 +275,12 @@ class EngineBlock_Corto_Adapter
             }
         }
         
+        // STAGE 5 - Manipulate the response
         $response['saml:Assertion']['saml:Subject']['saml:NameID']['_Format'] = 'urn:oasis:names:tc:SAML:2.0:nameid-format:persistent';
         $response['saml:Assertion']['saml:Subject']['saml:NameID']['__v'] = $subjectId;
     }
     
-    public function _validateVOMembership($subjectIdentifier, $voIdentifier)
+    protected function _validateVOMembership($subjectIdentifier, $voIdentifier)
     {
         // todo: this is pure happy flow
         
@@ -298,6 +294,17 @@ class EngineBlock_Corto_Adapter
         }
         
         return $client->isMember($subjectIdentifier, $metadata["groupidentifier"]);
+    }
+    
+    protected function _validateSpIdpConnection($spEntityMetadata, $idpEntityMetadata)
+    {
+        $idpEntityId = $idpEntityMetadata["EntityId"];
+        $spEntityId = $spEntityMetadata["EntityId"];
+        
+        $serviceRegistryAdapter = $this->_getServiceRegistryAdapter();
+        if (!$serviceRegistryAdapter->isConnectionAllowed($spEntityId, $idpEntityId)) {
+            throw new EngineBlock_Exception("Received a response from an IDP that is not allowed to connect to the requesting SP");
+        }
     }
 
     /**

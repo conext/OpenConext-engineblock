@@ -28,7 +28,7 @@ class EngineBlock_Corto_ServiceRegistry_Adapter
         foreach ($entities as $entityId => $entityData) {
             if (isset($entityData['SingleSignOnService'])) {
                 // entity is an idp
-                if ($this->_serviceRegistry->isConnectionAllowed(
+                if (!$this->_serviceRegistry->isConnectionAllowed(
                     $spEntityId,
                     $entityId
                 )) {
@@ -38,32 +38,10 @@ class EngineBlock_Corto_ServiceRegistry_Adapter
         }
         return $entities;
     }
-
-    /**
-     * Given a list of (SAML2) entities, filter out the sps that are nog allowed
-     * for the given Identity Provider.
-     *
-     * @todo makes a call for EVERY sp to the service registry,
-     *       the SR should just implement 1 call for all allowed SPs
-     *
-     * @param  $entities
-     * @param  $idpEntityId
-     * @return Filtered entities
-     */
-    public function filterEntitiesByIdp(array $entities, $idpEntityId)
+    
+    public function isConnectionAllowed($spEntityId, $idpEntityId)
     {
-        foreach ($entities as $entityId => $entityData) {
-            if (isset($entityData['AssertionConsumerService'])) {
-                // entity is an sp
-                if ($this->_serviceRegistry->isConnectionAllowed(
-                    $entityId,
-                    $idpEntityId
-                )) {
-                    unset($entities[$entityId]);
-                }
-            }
-        }
-        return $entities;
+        return $this->_serviceRegistry->isConnectionAllowed($spEntityId, $idpEntityId);
     }
 
     public function getRemoteMetaData()
