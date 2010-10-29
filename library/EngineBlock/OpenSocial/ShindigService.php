@@ -140,17 +140,18 @@ class EngineBlock_OpenSocial_ShindigService implements ActivityService, PersonSe
         throw new SocialSpiException("Not implemented by EngineBlock", ResponseError::$INTERNAL_ERROR);
     }
 
-    public function deleteActivities($userId, $groupId, $appId, $activityIds, SecurityToken $token)
-    {
-        throw new SocialSpiException("Not implemented by EngineBlock", ResponseError::$INTERNAL_ERROR);
-    }
-
-    /**
-     * Creates the passed in activity for the given user. Once createActivity is
-     * called, getActivities will be able to return the Activity.
-     */
-    public function createActivity($userId, $groupId, $appId, $fields, $activity, SecurityToken $token)
-    {
-        throw new SocialSpiException("Not implemented by EngineBlock", ResponseError::$INTERNAL_ERROR);
-    }
+// DISABLED, WE ONLY SUPPORT READ OPERATIONS IN ENGINEBLOCK FOR NOW
+//    public function deleteActivities($userId, $groupId, $appId, $activityIds, SecurityToken $token)
+//    {
+//        throw new SocialSpiException("Not implemented by EngineBlock", ResponseError::$INTERNAL_ERROR);
+//    }
+//
+//    /**
+//     * Creates the passed in activity for the given user. Once createActivity is
+//     * called, getActivities will be able to return the Activity.
+//     */
+//    public function createActivity($userId, $groupId, $appId, $fields, $activity, SecurityToken $token)
+//    {
+//        throw new SocialSpiException("Not implemented by EngineBlock", ResponseError::$INTERNAL_ERROR);
+//    }
 } 
