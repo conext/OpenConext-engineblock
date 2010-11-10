@@ -25,3 +25,4 @@ class Authentication_Controller_Proxy extends EngineBlock_Controller_Abstract
         $proxyServer->processedAssertionConsumer();
     }
 }
+

@@ -15,7 +15,6 @@ class Authentication_Controller_IdentityProvider extends EngineBlock_Controller_
             if (substr($argument, 0, 3)=="vo:") {
                 $proxyServer->setVirtualOrganisationContext(substr($argument,3));
             } else {
-
                 $idPEntityId = $argument;
             }
 

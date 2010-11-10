@@ -5,7 +5,7 @@ class Authentication_Controller_ServiceProvider extends EngineBlock_Controller_A
     public function consumeAssertionAction()
     {
         $this->setNoRender();
-        
+
         $proxyServer = new EngineBlock_Corto_Adapter();
         
         try {
