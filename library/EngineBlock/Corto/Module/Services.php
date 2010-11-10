@@ -178,12 +178,18 @@ class EngineBlock_Corto_Module_Services extends Corto_Module_Services
         return $entityDescriptor;
     }
 
+    protected function _getConsentUid($response, $attributes)
+    {
+        return $response['saml:Assertion']['saml:Subject']['saml:NameID']['__v'];
+    }
+
     /**
      * @return PDO
      */
     protected function _getConsentDatabaseConnection()
     {
         // We only use the write connection because consent is 3 queries of which only 1 light select query.
-        return EngineBlock_Database_ConnectionFactory::create(EngineBlock_Database_ConnectionFactory::MODE_WRITE);
+        $factory = new EngineBlock_Database_ConnectionFactory();
+        return $factory->create(EngineBlock_Database_ConnectionFactory::MODE_WRITE);
     }
 }

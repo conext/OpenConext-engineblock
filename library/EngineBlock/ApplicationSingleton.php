@@ -219,7 +219,7 @@ class EngineBlock_ApplicationSingleton
 
     public function handleException(Exception $e)
     {
-        $this->_reportError($e);
+        $this->reportError($e);
 
         $message = 'A exceptional condition occurred, it has been logged and sent to the administrator.';
         if ($this->getConfiguration()->debug) {
@@ -236,7 +236,7 @@ class EngineBlock_ApplicationSingleton
             return;
         }
 
-        $this->_reportError(new Exception($errorMesage . " [$errorFile:$errorLine]", $errorNumber));
+        $this->reportError(new Exception($errorMesage . " [$errorFile:$errorLine]", $errorNumber));
 
         /* Execute PHP internal error handler */
         return false;
@@ -250,7 +250,7 @@ class EngineBlock_ApplicationSingleton
             return false;
         }
 
-        $this->_reportError(new Exception('Fatal error: ' . var_export($lastError, true)));
+        $this->reportError(new Exception('Fatal error: ' . var_export($lastError, true)));
 
         $message = 'A error occurred, it has been logged and sent to the administrator.';
         if ($this->getConfiguration()->debug) {
@@ -260,10 +260,10 @@ class EngineBlock_ApplicationSingleton
         die($message);
     }
 
-    protected function _reportError(Exception $e)
+    public function reportError(Exception $e)
     {
-        if (isset(EngineBlock_ApplicationSingleton::getInstance()->getConfiguration()->error->reports)) {
-            $reportingConfiguration = EngineBlock_ApplicationSingleton::getInstance()->getConfiguration()->error->reports;
+        if (isset($this->getConfiguration()->error->reports)) {
+            $reportingConfiguration = $this->getConfiguration()->error->reports;
             $reporter = new EngineBlock_Error_Reporter($reportingConfiguration);
             $reporter->report($e);
         }

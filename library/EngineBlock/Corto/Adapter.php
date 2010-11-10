@@ -180,6 +180,7 @@ class EngineBlock_Corto_Adapter
         $proxyServer->setConfigs(array(
             'debug' => $application->getConfigurationValue('debug', false),
             'trace' => $application->getConfigurationValue('debug', false),
+            'ConsentStoreValues' => $this->_getConsentConfigurationValue('storeValues', true)
         ));
 
         $attributes = array();
@@ -223,7 +224,7 @@ class EngineBlock_Corto_Adapter
             array('FilePath'=>ENGINEBLOCK_FOLDER_MODULES . 'Authentication/View/Proxy/')
         );
 
-        $proxyServer->setSessionLogDefault(new Corto_Log_File('/tmp/corto_session'));
+        $proxyServer->setSessionLogDefault($this->_getCortoMemcacheLog());
         
         $proxyServer->setBindingsModule(new EngineBlock_Corto_Module_Bindings($proxyServer));
         $proxyServer->setServicesModule(new EngineBlock_Corto_Module_Services($proxyServer));
@@ -237,6 +238,21 @@ class EngineBlock_Corto_Adapter
                 )
             ));
         }
+    }
+
+    protected function _getConsentConfigurationValue($name, $default = null)
+    {
+        $configuration = EngineBlock_ApplicationSingleton::getInstance()->getConfiguration();
+        if (!isset($configuration->authentication)) {
+            return $default;
+        }
+        if (!isset($configuration->authentication->consent)) {
+            return $default;
+        }
+        if (!isset($configuration->authentication->consent->$name)) {
+            return $default;
+        }
+        return $configuration->authentication->consent->$name;
     }
 
     /**
@@ -372,7 +388,9 @@ class EngineBlock_Corto_Adapter
 
     protected function _getAttributeProviders()
     {
-        return array(new EngineBlock_AttributeProvider_Dummy());
+        return array(
+            new EngineBlock_AttributeProvider_Dummy(),
+        );
     }
 
     protected function _getAttributeAggregator($providers)
@@ -394,5 +412,16 @@ class EngineBlock_Corto_Adapter
     {
         $this->_remoteEntitiesFilter = $callback;
         return $this;
+    }
+
+    protected function _getCortoMemcacheLog()
+    {
+        return new Corto_Log_Memcache($this->_getMemcacheClient());
+    }
+
+    protected function _getMemcacheClient()
+    {
+        $factory = new EngineBlock_Memcache_ConnectionFactory();
+        return $factory->create();
     }
 }
